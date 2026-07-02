@@ -280,7 +280,7 @@ export function IntroSection() {
         )}
 
         {/* Terminal body */}
-        <div className="p-6 font-mono text-sm md:text-base leading-relaxed min-h-[320px] max-h-[520px] overflow-y-auto">
+        <div className="p-6 font-mono text-sm md:text-base leading-relaxed h-[520px] overflow-y-auto">
           {LINES.slice(0, completedLines).map((line, i) => (
             <div key={i} className={line.color ?? 'text-gray-300'}>
               {line.text || '\u00A0'}
