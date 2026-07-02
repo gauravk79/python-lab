@@ -160,7 +160,6 @@ export function IntroSection() {
   // ── Skip ──────────────────────────────────────────────────────────────────
   const skipToEnd = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    // Trigger fade-out directly (don't rely on the done effect)
     fadeOnDoneTriggered.current = true;
     if (isPlaying) {
       startFade(0, FADE_OUT_MS, () => { audioRef.current?.pause(); });
@@ -169,6 +168,30 @@ export function IntroSection() {
     setCurrentChars(0);
     setDone(true);
   }, [isPlaying, startFade]);
+
+  // ── Replay from start ─────────────────────────────────────────────────────
+  const replayFromStart = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Reset typewriter
+    fadeOnDoneTriggered.current = false;
+    setCompletedLines(0);
+    setCurrentChars(0);
+    setDone(false);
+    // Restart music: fade out current, then fade back in
+    const audio = audioRef.current;
+    if (audio && isPlaying && musicEnabled) {
+      startFade(0, 600, () => {
+        if (!audioRef.current) return;
+        audioRef.current.currentTime = 0;
+        audioRef.current.volume = 0;
+        audioRef.current.play().catch(() => {});
+        startFade(MUSIC_TARGET_VOL, FADE_IN_MS);
+      });
+    } else if (audio && isPlaying && !musicEnabled) {
+      // Music was muted — just rewind
+      audio.currentTime = 0;
+    }
+  }, [isPlaying, musicEnabled, startFade]);
 
   // ── Typewriter effect ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -226,6 +249,15 @@ export function IntroSection() {
                 {musicEnabled && isPlaying ? '♪ music on' : '♪ music off'}
               </button>
             )}
+            {/* Replay */}
+            <button
+              onClick={replayFromStart}
+              aria-label="Replay briefing from start"
+              title="Replay from start"
+              className="text-xs font-mono text-gray-500 hover:text-green-400 transition-colors"
+            >
+              [↺ replay]
+            </button>
             {/* Skip */}
             {!done && (
               <button
