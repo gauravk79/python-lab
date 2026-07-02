@@ -30,3 +30,11 @@ NODE_ENV = "production"
 
 [services.production.health.startup]
 path = "/api/healthz"
+
+[[services]]
+localPort = 3000
+name = "Python App"
+paths = ["/"]
+
+[services.development]
+run = "streamlit run /home/runner/workspace/python-hello/main.py --server.port 3000"
