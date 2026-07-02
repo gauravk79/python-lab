@@ -1,6 +1,6 @@
 kind = "web"
 previewPath = "/"
-title = "My First Python Program"
+title = "Hawkins Python Lab"
 version = "1.0.0"
 id = "artifacts/python-app"
 router = "path"
