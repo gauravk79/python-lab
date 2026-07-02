@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "My First Python Program"
+version = "1.0.0"
+id = "artifacts/python-app"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 26000
+
+[services.development]
+run = "pnpm --filter @workspace/python-app run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/python-app", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/python-app/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "26000"
+BASE_PATH = "/"
