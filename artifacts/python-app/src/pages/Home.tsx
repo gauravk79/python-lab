@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { Menu } from 'lucide-react';
 import { ConceptSection } from '../components/ConceptSection';
+import { IntroSection } from '../components/IntroSection';
 import { Sidebar } from '../components/Sidebar';
 import { units, allConcepts } from '../data/concepts';
 import { useActiveSection } from '../hooks/useActiveSection';
 
 export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const activeSection = useActiveSection(allConcepts.map(c => c.id));
+  const activeSection = useActiveSection(['intro', ...allConcepts.map(c => c.id)]);
 
   return (
     <div className="min-h-[100dvh] bg-background text-foreground font-sans flex selection:bg-[#e63946] selection:text-white">
@@ -49,10 +50,13 @@ export default function Home() {
           </p>
         </header>
 
-        <main className="max-w-4xl mx-auto px-6 space-y-20 relative z-10">
+        <main className="relative z-10">
+          <IntroSection />
+          <div className="max-w-4xl mx-auto px-6 space-y-20">
           {allConcepts.map((concept) => (
             <ConceptSection key={concept.id} concept={concept} />
           ))}
+          </div>
         </main>
 
         <footer className="max-w-4xl mx-auto px-6 mt-32">
