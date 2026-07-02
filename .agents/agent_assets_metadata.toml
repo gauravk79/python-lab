@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "J1_x-rhYKbKWk5p8FuGvz"
+uri = "file://attached_assets/generated_audio/stranger_things_intro.mp3"
+type = "audio"
+title = "stranger-things-intro"
