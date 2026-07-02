@@ -32,6 +32,16 @@ export function ConceptSection({ concept }: { concept: ConceptData }) {
   const [blankValue, setBlankValue] = useState('');
   const [blankSubmitted, setBlankSubmitted] = useState(false);
 
+  // When concept changes (if it ever does), reset state
+  React.useEffect(() => {
+    setCode(concept.initialCode);
+    setOutput('');
+    setQuizChoice(null);
+    setQuizSubmitted(false);
+    setBlankValue('');
+    setBlankSubmitted(false);
+  }, [concept.initialCode]);
+
   const handleRun = () => {
     const res = runPythonSimulator(code);
     setOutput(res);
@@ -51,6 +61,7 @@ export function ConceptSection({ concept }: { concept: ConceptData }) {
 
   return (
     <motion.section 
+      id={concept.id}
       initial={{ opacity: 0, y: 30 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-100px" }}
