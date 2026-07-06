@@ -26,7 +26,12 @@ export const units = [
       { id: "data-types", title: "Transmission Intercepted" },
       { id: "variables", title: "Label Your Intel" },
       { id: "math", title: "Hawkins Lab Calculations" },
-      { id: "debugging", title: "Signal Corrupted" }
+      { id: "debugging", title: "Signal Corrupted" },
+      { id: "syntax-errors", title: "Broken Portal Grammar" },
+      { id: "runtime-errors", title: "Crash Mid-Mission" },
+      { id: "logic-errors", title: "Silent Wrong Signal" },
+      { id: "comment-checkpoints", title: "Notes from the Lab" },
+      { id: "terminal-challenge", title: "Final Terminal Challenge" }
     ]
   },
   {
@@ -165,6 +170,116 @@ export const allConcepts: ConceptData[] = [
       answer: "+",
       praise: "+ concatenates strings — joining Hawkins and Lab together!"
     }
+  },
+  {
+    id: "syntax-errors",
+    title: "Broken Portal Grammar",
+    emoji: "🧩",
+    explanation: "Syntax errors mean the code is not valid Python. Run this broken snippet, then remove the trailing + so the mission can start.",
+    initialCode: `print("Run me!")\nprint("Signal check")\nprint(12.43 + 38.43 +)\nprint("Mission complete")`,
+    quiz: {
+      question: "If no lines run and Python reports an error immediately, what type of bug is most likely?",
+      options: ["Logic error", "Syntax error", "Runtime error", "Data error"],
+      correctIndex: 1,
+      correctFeedback: "Correct. Syntax errors stop execution before the first line of the mission runs.",
+      wrongFeedback: "When nothing executes at all, it is usually a syntax error in code structure."
+    },
+    blank: {
+      textParts: ["print(str(47)\n", " \"82\")"],
+      answer: "+",
+      praise: "Nice. Adding + correctly joins both string parts in one print expression."
+    }
+  },
+  {
+    id: "runtime-errors",
+    title: "Crash Mid-Mission",
+    emoji: "💥",
+    explanation: "Runtime errors appear while the code is running. Some lines succeed, then the program crashes on a bad instruction.",
+    initialCode: `print("Run me!")\nprint("Runtime scan started")\nprint(28.32 + 431.89)\nprint(47 + "82")\nprint("Mission complete")`,
+    quiz: {
+      question: "Dustin sees output from the first lines, then a crash on line 4. What category is this?",
+      options: ["Syntax error", "Runtime error", "Logic error", "Comment error"],
+      correctIndex: 1,
+      correctFeedback: "Exactly. Runtime errors are discovered during execution.",
+      wrongFeedback: "If earlier lines run and then it crashes, think runtime error."
+    },
+    blank: {
+      textParts: ["print(str(47) ", " \"82\")"],
+      answer: "+",
+      praise: "Great. Using + here concatenates the converted strings safely."
+    }
+  },
+  {
+    id: "logic-errors",
+    title: "Silent Wrong Signal",
+    emoji: "🕵️",
+    explanation: "Logic errors are sneaky. The program runs without crashing, but the result is not what you intended. In this signal, add the missing 8 to fix the total.",
+    initialCode: `print("Run me!")\nprint("The sum of the numbers from 1 to 10 is:")\nprint(1 + 2 + 3 + 4 + 5 + 6 + 7 + 9 + 10)\nprint("Spot the missing number in the signal.")`,
+    quiz: {
+      question: "Your code runs and prints a value, but the answer is wrong. What kind of bug is that?",
+      options: ["Syntax error", "Runtime error", "Logic error", "Import error"],
+      correctIndex: 2,
+      correctFeedback: "Correct. Logic bugs pass Python's checks but fail your intention.",
+      wrongFeedback: "No crash plus wrong result usually means a logic error."
+    },
+    blank: {
+      textParts: ["1 + 2 + 3 + 4 + 5 + 6 + 7 + ", " + 9 + 10"],
+      answer: "8",
+      praise: "Exactly. Add 8 back and the sum aligns with the mission goal."
+    }
+  },
+  {
+    id: "comment-checkpoints",
+    title: "Notes from the Lab",
+    emoji: "📝",
+    explanation: "Comments and small checkpoints make debugging easier. Python ignores comments, but teammates rely on them.",
+    initialCode: `print("Run me!")\n# Sum the first five multiples of 9\nprint(9 + 18 + 27 + 34 + 45)\nprint("Checkpoint complete")`,
+    quiz: {
+      question: "Why is running code in small steps better than writing everything first?",
+      options: [
+        "It makes Python faster",
+        "It uses less memory",
+        "It helps isolate which recent change caused a bug",
+        "It avoids all bugs"
+      ],
+      correctIndex: 2,
+      correctFeedback: "Right. Small checkpoints make debugging much easier when something breaks.",
+      wrongFeedback: "Iterative development helps you pinpoint the exact change that introduced the issue."
+    },
+    blank: {
+      textParts: ["", " This line is a comment for humans."],
+      answer: "#",
+      praise: "Perfect. Python skips comments, but humans use them as mission notes."
+    }
+  },
+  {
+    id: "terminal-challenge",
+    title: "Final Terminal Challenge",
+    emoji: "🖥️",
+    explanation:
+      "One final Unit 1 mission: fix this terminal script by correcting a variable value, converting a string to a number for arithmetic, and making sure the program executes cleanly.",
+    initialCode:
+      "print(\"Run me!\")\nlanguage_code = \"pt\"\nsubject = \"computing\"\nbase_signal = \"99.99\"\npercent_discount = base_signal - base_signal * 0.15\nfixed_discount = base_signal - 12\nbest_signal = min(fixed_discount, percent_discount)\nurl = \"https://\" + language_code + \".hawkinslab.org/\" + subject\nprint(\"Portal:\", url)\nprint(\"Best signal:\", round(best_signal, 2))",
+    quiz: {
+      question:
+        "If base_signal is stored as text (\"99.99\"), what should you do before using it in arithmetic?",
+      options: [
+        "Convert it with float(base_signal)",
+        "Convert it with str(base_signal)",
+        "Leave it as is",
+        "Only wrap it in print()",
+      ],
+      correctIndex: 0,
+      correctFeedback:
+        "Correct. Use float(...) so subtraction and multiplication work without a TypeError.",
+      wrongFeedback:
+        "Arithmetic needs a numeric type. Convert string input to float before calculations.",
+    },
+    blank: {
+      textParts: ["url = \"https://\" + language_code + \".hawkinslab.org/\" ", " subject"],
+      answer: "+",
+      praise: "Nice. + joins string parts so the final portal URL is complete.",
+    },
   },
 
   // UNIT 2

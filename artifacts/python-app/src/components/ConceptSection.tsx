@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { runPythonSimulator } from '../utils/pythonSimulator';
+import { useProgress } from '@/context/progress-context';
+import { useAuth } from '@/context/auth-context';
 
 export type ConceptData = {
   id: string;
@@ -22,38 +24,126 @@ export type ConceptData = {
   };
 };
 
-export function ConceptSection({ concept }: { concept: ConceptData }) {
+export function ConceptSection({
+  concept,
+  onPromptLogin,
+}: {
+  concept: ConceptData;
+  onPromptLogin: () => void;
+}) {
+  const { user } = useAuth();
+  const { sectionProgressById, updateSectionProgress } = useProgress();
+  const savedProgress = sectionProgressById[concept.id];
   const [code, setCode] = useState(concept.initialCode);
   const [output, setOutput] = useState('');
+  const [showLoginNotice, setShowLoginNotice] = useState(false);
   
   const [quizChoice, setQuizChoice] = useState<number | null>(null);
   const [quizSubmitted, setQuizSubmitted] = useState(false);
   
   const [blankValue, setBlankValue] = useState('');
   const [blankSubmitted, setBlankSubmitted] = useState(false);
+  const [terminalSolved, setTerminalSolved] = useState(false);
+  const isTerminalChallenge = concept.id === 'terminal-challenge';
 
-  // When concept changes (if it ever does), reset state
   React.useEffect(() => {
     setCode(concept.initialCode);
     setOutput('');
-    setQuizChoice(null);
-    setQuizSubmitted(false);
-    setBlankValue('');
-    setBlankSubmitted(false);
   }, [concept.initialCode]);
 
+  React.useEffect(() => {
+    setQuizChoice(savedProgress?.quizChoice ?? null);
+    setQuizSubmitted(savedProgress?.quizSubmitted ?? false);
+    setBlankValue(savedProgress?.blankValue ?? '');
+    setBlankSubmitted(savedProgress?.blankSubmitted ?? false);
+    setTerminalSolved(savedProgress?.terminalSolved ?? false);
+  }, [
+    concept.id,
+    savedProgress?.blankSubmitted,
+    savedProgress?.blankValue,
+    savedProgress?.quizChoice,
+    savedProgress?.quizSubmitted,
+    savedProgress?.terminalSolved,
+  ]);
+
+  const buildSavedProgress = (
+    nextQuizChoice: number | null,
+    nextQuizSubmitted: boolean,
+    nextBlankValue: string,
+    nextBlankSubmitted: boolean,
+    nextTerminalSolved: boolean,
+  ) => {
+    const nextQuizCorrect =
+      nextQuizSubmitted && nextQuizChoice === concept.quiz.correctIndex;
+    const nextBlankCorrect =
+      nextBlankSubmitted && nextBlankValue.trim() === concept.blank.answer;
+    const quizSignalBoost = isTerminalChallenge ? 25 : 50;
+    const blankSignalBoost = isTerminalChallenge ? 25 : 50;
+    const terminalSignalBoost = isTerminalChallenge ? 50 : 0;
+    const score =
+      Number(nextQuizCorrect) * quizSignalBoost +
+      Number(nextBlankCorrect) * blankSignalBoost +
+      Number(nextTerminalSolved) * terminalSignalBoost;
+
+    return {
+      quizChoice: nextQuizChoice,
+      quizSubmitted: nextQuizSubmitted,
+      quizCorrect: nextQuizCorrect,
+      blankValue: nextBlankValue,
+      blankSubmitted: nextBlankSubmitted,
+      blankCorrect: nextBlankCorrect,
+      terminalSolved: nextTerminalSolved,
+      score,
+      completed: isTerminalChallenge
+        ? nextTerminalSolved && nextQuizCorrect && nextBlankCorrect
+        : nextQuizCorrect && nextBlankCorrect,
+    };
+  };
+
   const handleRun = () => {
+    maybeShowLoginNotice();
     const res = runPythonSimulator(code);
     setOutput(res);
+
+    if (!isTerminalChallenge) {
+      return;
+    }
+
+    const solvedNow =
+      terminalSolved ||
+      (res.includes('Portal: https://es.hawkinslab.org/computing') &&
+        res.includes('Best signal: 84.99'));
+
+    setTerminalSolved(solvedNow);
+    updateSectionProgress(
+      concept.id,
+      buildSavedProgress(quizChoice, quizSubmitted, blankValue, blankSubmitted, solvedNow),
+    );
+  };
+
+  const maybeShowLoginNotice = () => {
+    if (!user) {
+      setShowLoginNotice(true);
+    }
   };
 
   const handleQuiz = (idx: number) => {
+    maybeShowLoginNotice();
     setQuizChoice(idx);
     setQuizSubmitted(true);
+    updateSectionProgress(
+      concept.id,
+      buildSavedProgress(idx, true, blankValue, blankSubmitted, terminalSolved),
+    );
   };
 
   const checkBlank = () => {
+    maybeShowLoginNotice();
     setBlankSubmitted(true);
+    updateSectionProgress(
+      concept.id,
+      buildSavedProgress(quizChoice, quizSubmitted, blankValue, true, terminalSolved),
+    );
   };
 
   const isQuizCorrect = quizChoice === concept.quiz.correctIndex;
@@ -86,6 +176,19 @@ export function ConceptSection({ concept }: { concept: ConceptData }) {
             <span className="bg-[#ffb703] text-black w-8 h-8 rounded-full flex items-center justify-center text-sm">1</span>
             Hawkins Lab Terminal
           </h3>
+          {isTerminalChallenge && (
+            <div
+              className={`mb-4 rounded-lg border px-4 py-3 text-sm font-mono tracking-[0.04em] ${
+                terminalSolved
+                  ? 'border-green-500/50 bg-green-900/20 text-green-300'
+                  : 'border-[#ffb703]/40 bg-[#ffb703]/10 text-[#ffdd8a]'
+              }`}
+            >
+              {terminalSolved
+                ? 'Terminal objective complete (+50 Signal Boost saved)'
+                : 'Run a correct terminal fix to earn +50 Signal Boost and unlock section completion.'}
+            </div>
+          )}
           <div className="bg-black/80 border border-gray-700 rounded-lg overflow-hidden flex flex-col md:flex-row shadow-2xl">
             <div className="flex-1 p-5 border-b md:border-b-0 md:border-r border-gray-700 relative group">
               <div className="absolute top-2 right-4 text-xs text-gray-600 font-mono">input.py</div>
@@ -117,6 +220,17 @@ export function ConceptSection({ concept }: { concept: ConceptData }) {
             <span className="bg-[#ffb703] text-black w-8 h-8 rounded-full flex items-center justify-center text-sm">2</span>
             Mind Flayer's Test
           </h3>
+          {showLoginNotice && !user && (
+            <motion.button
+              type="button"
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              onClick={onPromptLogin}
+              className="mb-4 block w-full rounded-lg border border-[#0044ff]/40 bg-[#0044ff]/12 px-4 py-3 text-left text-sm font-mono tracking-[0.02em] text-[#bfdbfe] transition-colors hover:bg-[#0044ff]/20"
+            >
+              Sign in to track your progress.
+            </motion.button>
+          )}
           <div className="bg-[#1a1a2e] p-6 md:p-8 rounded-lg border border-gray-700 shadow-inner">
             <p className="text-lg md:text-xl mb-6 font-medium text-gray-200">{concept.quiz.question}</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -166,7 +280,10 @@ export function ConceptSection({ concept }: { concept: ConceptData }) {
                 <input 
                   type="text" 
                   value={blankValue}
-                  onChange={e => setBlankValue(e.target.value)}
+                  onChange={e => {
+                    maybeShowLoginNotice();
+                    setBlankValue(e.target.value);
+                  }}
                   className="w-20 bg-[#2a2a3e] border-2 border-[#ffb703] text-center text-[#ffb703] font-bold outline-none rounded py-1 focus:bg-[#3a3a4e] transition-colors"
                 />
                 <span className="text-gray-300">{concept.blank.textParts[1]}</span>

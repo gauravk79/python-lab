@@ -1,5 +1,7 @@
 import { Route, Switch, Router as WouterRouter } from 'wouter';
 import Home from './pages/Home';
+import { AuthProvider } from './context/auth-context';
+import { ProgressProvider } from './context/progress-context';
 
 function Router() {
   return (
@@ -16,9 +18,13 @@ function Router() {
 
 function App() {
   return (
-    <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
-      <Router />
-    </WouterRouter>
+    <AuthProvider>
+      <ProgressProvider>
+        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
+          <Router />
+        </WouterRouter>
+      </ProgressProvider>
+    </AuthProvider>
   );
 }
 

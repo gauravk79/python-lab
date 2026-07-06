@@ -46,6 +46,7 @@ const FADE_OUT_MS = 1500;
 const FADE_STEPS = 40;
 
 export function IntroSection() {
+  const [hasStarted, setHasStarted] = useState(false);
   const [completedLines, setCompletedLines] = useState(0);
   const [currentChars, setCurrentChars] = useState(0);
   const [done, setDone] = useState(false);
@@ -120,6 +121,14 @@ export function IntroSection() {
     });
   }, [isPlaying, startFade]);
 
+  const startBriefing = useCallback(() => {
+    if (hasStarted) return;
+    setHasStarted(true);
+    if (musicEnabled) {
+      startMusic();
+    }
+  }, [hasStarted, musicEnabled, startMusic]);
+
   // ── Toggle mute / unmute ──────────────────────────────────────────────────
   const handleMusicToggle = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -149,13 +158,13 @@ export function IntroSection() {
 
   // ── Fade out when intro naturally finishes ────────────────────────────────
   useEffect(() => {
-    if (!done || fadeOnDoneTriggered.current || !isPlaying) return;
+    if (!hasStarted || !done || fadeOnDoneTriggered.current || !isPlaying) return;
     fadeOnDoneTriggered.current = true;
     const t = setTimeout(() => {
       startFade(0, FADE_OUT_MS, () => { audioRef.current?.pause(); });
     }, 1200);
     return () => clearTimeout(t);
-  }, [done, isPlaying, startFade]);
+  }, [hasStarted, done, isPlaying, startFade]);
 
   // ── Skip ──────────────────────────────────────────────────────────────────
   const skipToEnd = useCallback((e: React.MouseEvent) => {
@@ -173,6 +182,7 @@ export function IntroSection() {
   const replayFromStart = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     // Reset typewriter
+    setHasStarted(true);
     fadeOnDoneTriggered.current = false;
     setCompletedLines(0);
     setCurrentChars(0);
@@ -195,7 +205,7 @@ export function IntroSection() {
 
   // ── Typewriter effect ─────────────────────────────────────────────────────
   useEffect(() => {
-    if (done) return;
+    if (!hasStarted || done) return;
     const line = LINES[completedLines];
     if (!line) { setDone(true); return; }
 
@@ -210,12 +220,13 @@ export function IntroSection() {
       }, pause);
       return () => clearTimeout(t);
     }
-  }, [completedLines, currentChars, done]);
+  }, [hasStarted, completedLines, currentChars, done]);
 
   // Auto-scroll as text streams in
   useEffect(() => {
+    if (!hasStarted) return;
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }, [completedLines, currentChars]);
+  }, [hasStarted, completedLines, currentChars]);
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -225,7 +236,6 @@ export function IntroSection() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
       className="max-w-4xl mx-auto px-6 mb-20"
-      onClick={!isPlaying && musicEnabled ? startMusic : undefined}
     >
       <div className="bg-black border border-[#e63946]/60 rounded-xl overflow-hidden shadow-[0_0_40px_rgba(230,57,70,0.2)]">
         {/* Title bar */}
@@ -238,8 +248,16 @@ export function IntroSection() {
           </span>
 
           <div className="ml-auto flex items-center gap-3">
+            {!hasStarted && (
+              <button
+                onClick={startBriefing}
+                className="text-xs font-mono text-black bg-[#ffb703] hover:bg-yellow-400 px-2 py-1 rounded transition-colors"
+              >
+                [play briefing]
+              </button>
+            )}
             {/* Music toggle */}
-            {!done && (
+            {hasStarted && !done && (
               <button
                 onClick={handleMusicToggle}
                 aria-label={musicEnabled && isPlaying ? 'Mute intro music' : 'Unmute intro music'}
@@ -259,7 +277,7 @@ export function IntroSection() {
               [↺ replay]
             </button>
             {/* Skip */}
-            {!done && (
+            {hasStarted && !done && (
               <button
                 onClick={skipToEnd}
                 className="text-xs text-gray-600 hover:text-gray-400 font-mono transition-colors"
@@ -271,7 +289,7 @@ export function IntroSection() {
         </div>
 
         {/* Click-to-enable prompt — only before first successful play */}
-        {!isPlaying && !done && (
+        {hasStarted && !isPlaying && !done && (
           <div className="px-6 pt-4 pb-0">
             <span className="text-[10px] font-mono text-[#ffb703]/70 animate-pulse tracking-widest">
               ▶ CLICK TO ENABLE HAWKINS LAB AUDIO TRANSMISSION
@@ -281,24 +299,40 @@ export function IntroSection() {
 
         {/* Terminal body */}
         <div className="p-6 font-mono text-sm md:text-base leading-relaxed h-[520px] overflow-y-auto">
-          {LINES.slice(0, completedLines).map((line, i) => (
-            <div key={i} className={line.color ?? 'text-gray-300'}>
-              {line.text || '\u00A0'}
+          {!hasStarted ? (
+            <div className="h-full flex flex-col items-center justify-center text-center gap-5">
+              <p className="text-gray-400 max-w-xl">
+                The welcome briefing is paused. Start it when you are ready, or scroll directly to any unit below.
+              </p>
+              <button
+                onClick={startBriefing}
+                className="bg-[#e63946] hover:bg-red-500 text-white font-bold py-2 px-6 rounded shadow-[0_0_15px_rgba(230,57,70,0.6)] transition-all active:scale-95 tracking-wider"
+              >
+                ▶ Play Welcome Briefing
+              </button>
             </div>
-          ))}
+          ) : (
+            <>
+              {LINES.slice(0, completedLines).map((line, i) => (
+                <div key={i} className={line.color ?? 'text-gray-300'}>
+                  {line.text || '\u00A0'}
+                </div>
+              ))}
 
-          {completedLines < LINES.length && (
-            <div className={LINES[completedLines].color ?? 'text-gray-300'}>
-              {LINES[completedLines].text.slice(0, currentChars)}
-              <span className="animate-[blink_1s_step-end_infinite] inline-block w-[9px] h-[1.1em] bg-current ml-[1px] align-middle opacity-90" />
-            </div>
-          )}
+              {completedLines < LINES.length && (
+                <div className={LINES[completedLines].color ?? 'text-gray-300'}>
+                  {LINES[completedLines].text.slice(0, currentChars)}
+                  <span className="animate-[blink_1s_step-end_infinite] inline-block w-[9px] h-[1.1em] bg-current ml-[1px] align-middle opacity-90" />
+                </div>
+              )}
 
-          {done && (
-            <div className="text-green-400 mt-1">
-              {'> '}
-              <span className="animate-[blink_1s_step-end_infinite] inline-block w-[9px] h-[1.1em] bg-current ml-[1px] align-middle opacity-90" />
-            </div>
+              {done && (
+                <div className="text-green-400 mt-1">
+                  {'> '}
+                  <span className="animate-[blink_1s_step-end_infinite] inline-block w-[9px] h-[1.1em] bg-current ml-[1px] align-middle opacity-90" />
+                </div>
+              )}
+            </>
           )}
 
           <div ref={bottomRef} />

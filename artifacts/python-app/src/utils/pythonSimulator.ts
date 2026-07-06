@@ -34,6 +34,64 @@ export function runPythonSimulator(code: string): string {
     if (code.includes('print("Power doubled:", result)')) {
       return `Power doubled: 22\nHero: ${vars.hero || 'Eleven'}`;
     }
+    if (code.includes('print("Signal check")') && code.includes('12.43 + 38.43 +')) {
+      return `SyntaxError: invalid syntax\nHint: remove the trailing + in the signal math line.`;
+    }
+    if (code.includes('print("Signal check")') && code.includes('12.43 + 38.43')) {
+      return `Run me!\nSignal check\n50.86\nMission complete`;
+    }
+    if (code.includes('print("Runtime scan started")')) {
+      if (code.includes('print(47 + "82")')) {
+        return `Run me!\nRuntime scan started\n460.21\nTypeError: unsupported operand type(s) for +: 'int' and 'str'`;
+      }
+
+      const fixedAddMatch = code.match(/print\((\d+)\s*\+\s*(\d+)\)/);
+      if (fixedAddMatch) {
+        const left = Number(fixedAddMatch[1]);
+        const right = Number(fixedAddMatch[2]);
+        return `Run me!\nRuntime scan started\n460.21\n${left + right}\nMission complete`;
+      }
+    }
+    if (code.includes('The sum of the numbers from 1 to 10 is:')) {
+      const sumLineMatch = code.match(/print\(([^\n]+)\)\nprint\("Spot the missing number in the signal\."\)/);
+      if (sumLineMatch) {
+        const expression = sumLineMatch[1].trim();
+        const numberTokens = expression.match(/\d+/g);
+        if (numberTokens) {
+          const total = numberTokens.reduce((sum, token) => sum + Number(token), 0);
+          return `Run me!\nThe sum of the numbers from 1 to 10 is:\n${total}\nSpot the missing number in the signal.`;
+        }
+      }
+    }
+    if (code.includes('# Sum the first five multiples of 9') && code.includes('9 + 18 + 27 + 34 + 45')) {
+      return `Run me!\n133\nCheckpoint complete`;
+    }
+    if (code.includes('base_signal') && code.includes('hawkinslab.org')) {
+      const hasPtLanguage = /language_code\s*=\s*["']pt["']/.test(code);
+      const hasEsLanguage = /language_code\s*=\s*["']es["']/.test(code);
+      const hasStringBaseSignal = /base_signal\s*=\s*["']99\.99["']/.test(code);
+      const hasNumericConversion =
+        /base_signal\s*=\s*float\(\s*["']99\.99["']\s*\)/.test(code) ||
+        /base_signal\s*=\s*99\.99\b/.test(code) ||
+        /base_signal\s*=\s*float\(\s*base_signal\s*\)/.test(code) ||
+        /float\(\s*base_signal\s*\)/.test(code);
+
+      if (hasPtLanguage && !hasNumericConversion) {
+        return `Run me!\nTypeError: unsupported operand type(s) for -: 'str' and 'float'\nHint: change language_code to "es" and convert base_signal to float before arithmetic.`;
+      }
+
+      if (!hasEsLanguage) {
+        return `Run me!\nHint: switch the language code from pt to es before opening the portal.`;
+      }
+
+      if (hasStringBaseSignal && !hasNumericConversion) {
+        return `Run me!\nTypeError: unsupported operand type(s) for -: 'str' and 'float'\nHint: convert base_signal to float before arithmetic.`;
+      }
+
+      if (hasEsLanguage && hasNumericConversion) {
+        return `Run me!\nPortal: https://es.hawkinslab.org/computing\nBest signal: 84.99`;
+      }
+    }
 
     // UNIT 2
     if (code.includes('if creature == "Demogorgon":')) {
@@ -131,7 +189,7 @@ export function runPythonSimulator(code: string): string {
     }
 
     // Simple print handler for basic custom typing
-    if (code.startsWith('print(') && code.endsWith(')')) {
+    if (!code.includes('\n') && code.startsWith('print(') && code.endsWith(')')) {
       const inner = code.slice(6, -1);
       if (inner.startsWith('"') && inner.endsWith('"') || inner.startsWith("'") && inner.endsWith("'")) {
         return inner.slice(1, -1);
