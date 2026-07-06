@@ -77,7 +77,7 @@ export function Sidebar({ units, activeSection, currentUnitId, unitProgressById,
         </div>
 
         {units.map((unit, index) => {
-          const progress = unitProgressById[unit.id];
+          const progress = unitProgressById?.[unit.id];
 
           return (
           <div key={unit.id} className="space-y-2">

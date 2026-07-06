@@ -113,7 +113,7 @@ export default function Home() {
     currentUnitId === INTRO_UNIT_ID ? [INTRO_UNIT_ID] : visibleSectionIds,
   );
   const celebration = unitCelebrations[currentUnitId] ?? unitCelebrations[INTRO_UNIT_ID];
-  const currentUnitProgress = currentUnitId === INTRO_UNIT_ID ? undefined : unitProgressById[currentUnitId];
+  const currentUnitProgress = currentUnitId === INTRO_UNIT_ID ? undefined : unitProgressById?.[currentUnitId];
   const isCurrentUnitComplete = currentUnitId === INTRO_UNIT_ID
     ? false
     : (currentUnitProgress?.completed ?? false);
