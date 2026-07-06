@@ -16,6 +16,8 @@ A **Stranger Things-themed interactive Python learning website** for kids, cover
 - ▶️ **In-browser Python runner** — no installs needed; students run code right in the page
 - 🧭 **Left sidebar navigation** — collapsible units with scroll-aware active highlighting
 - 🎨 **Full Stranger Things theme** — Creepster font, red glow effects, Christmas lights, Upside Down atmosphere
+- 🔐 **Google sign-in** — students can log in with Google for a personalized session
+- ☁️ **Firebase progress tracking** — lesson completion and unit progress are saved in Firestore
 
 ---
 
@@ -57,10 +59,27 @@ pnpm install
 ### Running Locally
 
 ```bash
-pnpm --filter @workspace/python-app run dev
+PORT=5174 BASE_PATH=/ pnpm --filter @workspace/python-app run dev
 ```
 
-Then open **http://localhost:5173** in your browser.
+Then open **http://localhost:5174** in your browser.
+
+### Firebase Setup (Google Auth + Progress Tracking)
+
+Create `artifacts/python-app/.env.local` with your Firebase project values:
+
+```bash
+VITE_FIREBASE_API_KEY=...
+VITE_FIREBASE_AUTH_DOMAIN=...
+VITE_FIREBASE_PROJECT_ID=...
+VITE_FIREBASE_STORAGE_BUCKET=...
+VITE_FIREBASE_MESSAGING_SENDER_ID=...
+VITE_FIREBASE_APP_ID=...
+```
+
+What this enables:
+- Google authentication (sign in/sign out)
+- Student progress persistence in Firestore (section-level completion, unit progress, resume state)
 
 ### Building for Production
 
