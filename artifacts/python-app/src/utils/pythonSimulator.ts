@@ -1,3 +1,301 @@
+type SimValue = string | number | boolean | null | unknown[] | Record<string, unknown>;
+
+const SIMPLE_KEYWORDS = new Set([
+  'true',
+  'false',
+  'null',
+  'undefined',
+  'Math',
+  'str',
+  'int',
+  'float',
+]);
+
+function splitTopLevel(input: string, separator = ','): string[] {
+  const parts: string[] = [];
+  let buffer = '';
+  let depth = 0;
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+
+  for (let index = 0; index < input.length; index += 1) {
+    const char = input[index];
+    const previous = index > 0 ? input[index - 1] : '';
+
+    if (char === "'" && !inDoubleQuote && previous !== '\\') {
+      inSingleQuote = !inSingleQuote;
+      buffer += char;
+      continue;
+    }
+
+    if (char === '"' && !inSingleQuote && previous !== '\\') {
+      inDoubleQuote = !inDoubleQuote;
+      buffer += char;
+      continue;
+    }
+
+    if (!inSingleQuote && !inDoubleQuote) {
+      if (char === '(' || char === '[' || char === '{') {
+        depth += 1;
+      } else if (char === ')' || char === ']' || char === '}') {
+        depth = Math.max(0, depth - 1);
+      } else if (char === separator && depth === 0) {
+        parts.push(buffer.trim());
+        buffer = '';
+        continue;
+      }
+    }
+
+    buffer += char;
+  }
+
+  if (buffer.trim()) {
+    parts.push(buffer.trim());
+  }
+
+  return parts;
+}
+
+function formatSimValue(value: SimValue): string {
+  if (typeof value === 'boolean') {
+    return value ? 'True' : 'False';
+  }
+
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? String(value) : 'NaN';
+  }
+
+  if (value === null) {
+    return 'None';
+  }
+
+  return JSON.stringify(value);
+}
+
+function evaluateSimpleExpression(expression: string, vars: Record<string, SimValue>): SimValue | undefined {
+  const trimmed = expression.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  const inputMatch = trimmed.match(/^input\((.*)\)$/);
+  if (inputMatch) {
+    const promptRaw = inputMatch[1]?.trim() ?? '';
+    let promptText = '';
+
+    if (
+      (promptRaw.startsWith('"') && promptRaw.endsWith('"')) ||
+      (promptRaw.startsWith("'") && promptRaw.endsWith("'"))
+    ) {
+      promptText = promptRaw.slice(1, -1).toLowerCase();
+    }
+
+    if (/city/.test(promptText)) {
+      return 'Hawkins';
+    }
+    if (/subject/.test(promptText)) {
+      return 'python';
+    }
+    if (/name/.test(promptText)) {
+      return 'Eleven';
+    }
+    if (/number|age|count/.test(promptText)) {
+      return '5';
+    }
+
+    return 'demo';
+  }
+
+  const fStringMatch = trimmed.match(/^f(["'])([\s\S]*)\1$/);
+  if (fStringMatch) {
+    const template = fStringMatch[2];
+    return template.replace(/\{\s*([A-Za-z_]\w*)\s*\}/g, (_, token: string) => {
+      if (token in vars) {
+        return formatSimValue(vars[token]);
+      }
+      return `{${token}}`;
+    });
+  }
+
+  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+    return trimmed.slice(1, -1);
+  }
+
+  if (trimmed === 'True') {
+    return true;
+  }
+
+  if (trimmed === 'False') {
+    return false;
+  }
+
+  if (trimmed === 'None') {
+    return null;
+  }
+
+  if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
+    return Number(trimmed);
+  }
+
+  const castMatch = trimmed.match(/^(str|int|float)\((.*)\)$/);
+  if (castMatch) {
+    const [, castType, innerExpression] = castMatch;
+    const innerValue = evaluateSimpleExpression(innerExpression, vars);
+    if (innerValue === undefined) {
+      return undefined;
+    }
+
+    if (castType === 'str') {
+      return formatSimValue(innerValue);
+    }
+
+    if (castType === 'int') {
+      const asNumber = Number(innerValue);
+      return Number.isNaN(asNumber) ? undefined : Math.trunc(asNumber);
+    }
+
+    const asFloat = Number(innerValue);
+    return Number.isNaN(asFloat) ? undefined : asFloat;
+  }
+
+  if (trimmed in vars) {
+    return vars[trimmed];
+  }
+
+  let jsExpression = trimmed
+    .replace(/\bTrue\b/g, 'true')
+    .replace(/\bFalse\b/g, 'false')
+    .replace(/\bNone\b/g, 'null')
+    .replace(/\band\b/g, '&&')
+    .replace(/\bor\b/g, '||')
+    .replace(/\bnot\b/g, '!');
+
+  if (/[^A-Za-z0-9_\s\[\]\(\)\{\}\.,'"+\-*/%<>=!&|:]/.test(jsExpression)) {
+    return undefined;
+  }
+
+  jsExpression = jsExpression.replace(/\b[A-Za-z_]\w*\b/g, (token) => {
+    if (SIMPLE_KEYWORDS.has(token)) {
+      return token;
+    }
+    if (token in vars) {
+      return JSON.stringify(vars[token]);
+    }
+    return token;
+  });
+
+  try {
+    const str = (value: unknown) => String(value);
+    const int = (value: unknown) => {
+      const asNumber = Number(value);
+      return Number.isNaN(asNumber) ? NaN : Math.trunc(asNumber);
+    };
+    const float = (value: unknown) => Number(value);
+    const value = Function(
+      'str',
+      'int',
+      'float',
+      `"use strict"; return (${jsExpression});`,
+    )(str, int, float) as SimValue;
+    return value;
+  } catch {
+    return undefined;
+  }
+}
+
+function detectPythonAdditionTypeError(
+  expression: string,
+  vars: Record<string, SimValue>,
+): string | null {
+  const parts = splitTopLevel(expression, '+');
+
+  if (parts.length < 2) {
+    return null;
+  }
+
+  const values: SimValue[] = [];
+  for (const part of parts) {
+    const evaluated = evaluateSimpleExpression(part, vars);
+    if (evaluated === undefined) {
+      return null;
+    }
+    values.push(evaluated);
+  }
+
+  const hasString = values.some((value) => typeof value === 'string');
+  const hasNumber = values.some((value) => typeof value === 'number');
+
+  if (hasString && hasNumber) {
+    return "TypeError: unsupported operand type(s) for +: 'int' and 'str'";
+  }
+
+  return null;
+}
+
+function runGenericSimulator(code: string): string | null {
+  const vars: Record<string, SimValue> = {};
+  const output: string[] = [];
+  const lines = code.split('\n');
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+
+    if (!line || line.startsWith('#')) {
+      continue;
+    }
+
+    if (line.startsWith('import ') || line.startsWith('from ')) {
+      continue;
+    }
+
+    if (/^(if|elif|else|for|while|def|class|try|except|with)\b/.test(line)) {
+      return null;
+    }
+
+    const assignMatch = line.match(/^([A-Za-z_]\w*)\s*=\s*(.+)$/);
+    if (assignMatch && !line.includes('==') && !line.includes('!=') && !line.includes('>=') && !line.includes('<=')) {
+      const variableName = assignMatch[1];
+      const expression = assignMatch[2];
+      const evaluated = evaluateSimpleExpression(expression, vars);
+      if (evaluated === undefined) {
+        return null;
+      }
+      vars[variableName] = evaluated;
+      continue;
+    }
+
+    if (line.startsWith('print(') && line.endsWith(')')) {
+      const inner = line.slice(6, -1);
+      const argumentsList = splitTopLevel(inner);
+      const values: string[] = [];
+
+      for (const argument of argumentsList) {
+        const additionTypeError = detectPythonAdditionTypeError(argument, vars);
+        if (additionTypeError) {
+          return additionTypeError;
+        }
+
+        const evaluated = evaluateSimpleExpression(argument, vars);
+        if (evaluated === undefined) {
+          return null;
+        }
+        values.push(formatSimValue(evaluated));
+      }
+
+      output.push(values.join(' '));
+      continue;
+    }
+
+    return null;
+  }
+
+  return output.length > 0 ? output.join('\n') : null;
+}
+
 export function runPythonSimulator(code: string): string {
   try {
     const vars: Record<string, string> = {};
@@ -22,14 +320,11 @@ export function runPythonSimulator(code: string): string {
     // Maps standard test inputs directly to expected output with variable substitution where useful.
 
     // UNIT 1
-    if (code.includes('type(name)') && code.includes('type(number)')) {
-      return `<class 'str'>\n<class 'int'>\n<class 'bool'>`;
-    }
-    if (code.includes('print("Hero:", hero)') && code.includes('power_level')) {
-      return `Hero: ${vars.hero || 'Eleven'}\nPower level: ${vars.power_level || 11}`;
-    }
-    if (code.includes('demogorgons =') || code.includes('demogorgons * claws_each')) {
-      return `Total claws: 12\nClaws squared: 16`;
+    if (
+      (code.includes('type(name)') && code.includes('type(number)')) ||
+      (code.includes('is text (string)') && code.includes('is whole number (integer)'))
+    ) {
+      return `${vars.name || 'Eleven'} is text (string)\n${vars.number || 11} is whole number (integer)\n${vars.is_psychic || 'True'} is true/false (boolean)`;
     }
     if (code.includes('print("Power doubled:", result)')) {
       return `Power doubled: 22\nHero: ${vars.hero || 'Eleven'}`;
@@ -190,11 +485,21 @@ export function runPythonSimulator(code: string): string {
 
     // Simple print handler for basic custom typing
     if (!code.includes('\n') && code.startsWith('print(') && code.endsWith(')')) {
+      const genericSingleLineOutput = runGenericSimulator(code);
+      if (genericSingleLineOutput) {
+        return genericSingleLineOutput;
+      }
+
       const inner = code.slice(6, -1);
       if (inner.startsWith('"') && inner.endsWith('"') || inner.startsWith("'") && inner.endsWith("'")) {
         return inner.slice(1, -1);
       }
       return inner;
+    }
+
+    const genericOutput = runGenericSimulator(code);
+    if (genericOutput) {
+      return genericOutput;
     }
 
     return "Hmm... the Mind Flayer scrambled this code. Check your syntax and try again!";

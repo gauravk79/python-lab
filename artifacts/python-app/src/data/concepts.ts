@@ -26,10 +26,8 @@ export const units = [
       { id: "data-types", title: "Transmission Intercepted" },
       { id: "variables", title: "Label Your Intel" },
       { id: "math", title: "Hawkins Lab Calculations" },
+      { id: "field-challenge-1", title: "Milestone: Signal Decoder" },
       { id: "debugging", title: "Signal Corrupted" },
-      { id: "syntax-errors", title: "Broken Portal Grammar" },
-      { id: "runtime-errors", title: "Crash Mid-Mission" },
-      { id: "logic-errors", title: "Silent Wrong Signal" },
       { id: "comment-checkpoints", title: "Notes from the Lab" },
       { id: "terminal-challenge", title: "Final Terminal Challenge" }
     ]
@@ -100,7 +98,7 @@ export const allConcepts: ConceptData[] = [
     title: "Transmission Intercepted",
     emoji: "📡",
     explanation: "Python speaks in different types — strings for text, integers for whole numbers, floats for decimals, booleans for True/False. Like Hawkins Lab data logs!",
-    initialCode: `name = "Eleven"\nnumber = 11\nweight = 97.5\nis_psychic = True\nprint(type(name))\nprint(type(number))\nprint(type(is_psychic))`,
+    initialCode: `name = "Eleven"\nnumber = 11\nweight = 97.5\nis_psychic = True\nprint(name, "is text (string)")\nprint(number, "is whole number (integer)")\nprint(is_psychic, "is true/false (boolean)")`,
     quiz: {
       question: "Dustin logs a temperature reading of 98.6 in Python. What data type is that?",
       options: ["str", "int", "float", "bool"],
@@ -121,11 +119,16 @@ export const allConcepts: ConceptData[] = [
     explanation: "Variables are like the boxes in Joyce's living room — you label them and store something inside!",
     initialCode: `hero = "Eleven"\npower_level = 11\nprint("Hero:", hero)\nprint("Power level:", power_level)`,
     quiz: {
-      question: "Eleven needs to store her name in Python. Which line is correct?",
-      options: ['print("Eleven")', 'name = "Eleven"', '"Eleven" = name', 'store("Eleven")'],
+      question: "Input test: Which line asks the user for a city and stores it in a variable?",
+      options: [
+        'print("Search for a city:")',
+        'city = input("Search for a city: ")',
+        'input = city("Search for a city: ")',
+        'city == input("Search for a city: ")'
+      ],
       correctIndex: 1,
-      correctFeedback: "Friends don't lie — and neither does Python! = puts a value into a variable.",
-      wrongFeedback: "Variables use = to assign. The name goes on the LEFT, the value on the right."
+      correctFeedback: "Correct. input(...) collects text from the user, and city stores it for reuse later.",
+      wrongFeedback: "Look for a variable on the left and input(...) on the right. That is how you capture user input."
     },
     blank: {
       textParts: ["hero ", " \"Eleven\""],
@@ -140,11 +143,16 @@ export const allConcepts: ConceptData[] = [
     explanation: "Python can crunch numbers faster than Dustin can calculate Demogorgon claw count!",
     initialCode: `demogorgons = 3\nclaws_each = 4\ntotal_claws = demogorgons * claws_each\nprint("Total claws:", total_claws)\nprint("Claws squared:", claws_each ** 2)`,
     quiz: {
-      question: "Dustin counts 3 Demogorgons, each with 4 claws. Which code finds the total?",
-      options: ["4 + 3", "claws = 4 - 3", "claws = 4 * 3", "claws = 4 / 3"],
-      correctIndex: 2,
-      correctFeedback: "12 claws total! * means multiply — run, Dustin, RUN!",
-      wrongFeedback: "Counting repeated groups means multiplying. Which operator is that?"
+      question: "Type-casting test: Which snippet correctly adds 10 to a number entered by the user?",
+      options: [
+        'n = input("Enter number: ")\nprint(n + 10)',
+        'n = int(input("Enter number: "))\nprint(n + 10)',
+        'print(input("Enter number: ") + 10)',
+        'n = float(input("Enter number: "))\nprint(n + "10")'
+      ],
+      correctIndex: 1,
+      correctFeedback: "Exactly. Convert input to int first, then arithmetic works as expected.",
+      wrongFeedback: "input() returns text, so convert with int(...) before doing numeric addition."
     },
     blank: {
       textParts: ["print(11 ", " 2)"],
@@ -153,79 +161,51 @@ export const allConcepts: ConceptData[] = [
     }
   },
   {
+    id: "field-challenge-1",
+    title: "Milestone: Signal Decoder",
+    emoji: "🛰️",
+    explanation:
+      "Milestone mission unlocked. A supply drone from Hawkins Lab sent corrupted readings. Write Python code that stores crate_count = 6, base_weight = 12.5, and bonus_weight = \"7.5\". Convert bonus_weight so math works, then compute total_weight and avg_weight. Required output lines: Total weight: 82.5 and Average per crate: 13.75.",
+    initialCode:
+      "# MILESTONE: Signal Decoder Field Test\n# TODO 1: store the intercepted values\ncrate_count = 0\nbase_weight = 0.0\nbonus_weight = \"0\"\n\n# TODO 2: convert bonus_weight so arithmetic works\n\n# TODO 3: compute total_weight and avg_weight\n\n# TODO 4: print both required lines exactly\n# Total weight: 82.5\n# Average per crate: 13.75",
+    quiz: {
+      question: "Before doing math with bonus_weight = \"7.5\", what should you do first?",
+      options: [
+        "Keep it as text",
+        "Convert with float(bonus_weight)",
+        "Convert with bool(bonus_weight)",
+        "Wrap it in print()",
+      ],
+      correctIndex: 1,
+      correctFeedback:
+        "Correct. float(...) converts the intercepted text value into a usable number for calculations.",
+      wrongFeedback:
+        "This value starts as text. Convert it with float(...) before multiplying or adding.",
+    },
+    blank: {
+      textParts: ["bonus_weight = ", "(bonus_weight)"],
+      answer: "float",
+      praise:
+        "Field-ready. You converted the signal from text to number and stabilized the calculation pipeline.",
+    },
+  },
+  {
     id: "debugging",
     title: "Signal Corrupted",
     emoji: "🐛",
-    explanation: "Even Hawkins Lab scientists make mistakes. Syntax errors are typos. Runtime errors crash the program. Logic errors give wrong answers silently.",
-    initialCode: `hero = "Eleven"\npower = 11\nresult = power * 2\nprint("Power doubled:", result)\nprint("Hero:", hero)`,
+    explanation: "All major bug classes are now in this one mission. Diagnose syntax errors that block execution, runtime errors that crash mid-run, and logic errors that silently produce wrong answers.",
+    initialCode: `print("Run me!")\nprint("Debug command center active.")\nprint("Use the scenario buttons above the terminal to load Syntax, Runtime, and Logic tests.")`,
     quiz: {
-      question: "Will's code runs but gives the wrong answer. What type of error is that?",
-      options: ["Syntax error", "Runtime error", "Logic error", "Import error"],
-      correctIndex: 2,
-      correctFeedback: "Logic error! The code runs fine but the result is wrong — sneaky, like the Mind Flayer hiding in plain sight.",
-      wrongFeedback: "Syntax = typo. Runtime = crashes while running. Logic = wrong answer. Which one runs but gives bad output?"
-    },
-    blank: {
-      textParts: ['print("Hawkins" ', ' " Lab")'],
-      answer: "+",
-      praise: "+ concatenates strings — joining Hawkins and Lab together!"
-    }
-  },
-  {
-    id: "syntax-errors",
-    title: "Broken Portal Grammar",
-    emoji: "🧩",
-    explanation: "Syntax errors mean the code is not valid Python. Run this broken snippet, then remove the trailing + so the mission can start.",
-    initialCode: `print("Run me!")\nprint("Signal check")\nprint(12.43 + 38.43 +)\nprint("Mission complete")`,
-    quiz: {
-      question: "If no lines run and Python reports an error immediately, what type of bug is most likely?",
-      options: ["Logic error", "Syntax error", "Runtime error", "Data error"],
-      correctIndex: 1,
-      correctFeedback: "Correct. Syntax errors stop execution before the first line of the mission runs.",
-      wrongFeedback: "When nothing executes at all, it is usually a syntax error in code structure."
-    },
-    blank: {
-      textParts: ["print(str(47)\n", " \"82\")"],
-      answer: "+",
-      praise: "Nice. Adding + correctly joins both string parts in one print expression."
-    }
-  },
-  {
-    id: "runtime-errors",
-    title: "Crash Mid-Mission",
-    emoji: "💥",
-    explanation: "Runtime errors appear while the code is running. Some lines succeed, then the program crashes on a bad instruction.",
-    initialCode: `print("Run me!")\nprint("Runtime scan started")\nprint(28.32 + 431.89)\nprint(47 + "82")\nprint("Mission complete")`,
-    quiz: {
-      question: "Dustin sees output from the first lines, then a crash on line 4. What category is this?",
+      question: "A script prints two lines, then crashes with TypeError. Which bug class is that?",
       options: ["Syntax error", "Runtime error", "Logic error", "Comment error"],
       correctIndex: 1,
-      correctFeedback: "Exactly. Runtime errors are discovered during execution.",
-      wrongFeedback: "If earlier lines run and then it crashes, think runtime error."
+      correctFeedback: "Correct. Runtime errors appear during execution after the program has already started running.",
+      wrongFeedback: "If execution starts and then crashes, it's runtime. Syntax errors stop before line 1. Logic errors do not crash."
     },
     blank: {
-      textParts: ["print(str(47) ", " \"82\")"],
-      answer: "+",
-      praise: "Great. Using + here concatenates the converted strings safely."
-    }
-  },
-  {
-    id: "logic-errors",
-    title: "Silent Wrong Signal",
-    emoji: "🕵️",
-    explanation: "Logic errors are sneaky. The program runs without crashing, but the result is not what you intended. In this signal, add the missing 8 to fix the total.",
-    initialCode: `print("Run me!")\nprint("The sum of the numbers from 1 to 10 is:")\nprint(1 + 2 + 3 + 4 + 5 + 6 + 7 + 9 + 10)\nprint("Spot the missing number in the signal.")`,
-    quiz: {
-      question: "Your code runs and prints a value, but the answer is wrong. What kind of bug is that?",
-      options: ["Syntax error", "Runtime error", "Logic error", "Import error"],
-      correctIndex: 2,
-      correctFeedback: "Correct. Logic bugs pass Python's checks but fail your intention.",
-      wrongFeedback: "No crash plus wrong result usually means a logic error."
-    },
-    blank: {
-      textParts: ["1 + 2 + 3 + 4 + 5 + 6 + 7 + ", " + 9 + 10"],
-      answer: "8",
-      praise: "Exactly. Add 8 back and the sum aligns with the mission goal."
+      textParts: ["If code runs but output is wrong, the bug is a ", " error."],
+      answer: "logic",
+      praise: "Exactly. Logic errors are the silent ones: execution succeeds, intent fails."
     }
   },
   {
@@ -257,12 +237,12 @@ export const allConcepts: ConceptData[] = [
     title: "Final Terminal Challenge",
     emoji: "🖥️",
     explanation:
-      "One final Unit 1 mission: fix this terminal script by correcting a variable value, converting a string to a number for arithmetic, and making sure the program executes cleanly.",
+      "Final Unit 1 mission. Use this checklist: (1) change language_code from \"pt\" to \"es\", (2) convert base_signal to a number before arithmetic, and (3) choose the discount that gives the lower final signal (best discount). Keep output labels unchanged. Success output must include: Portal: https://es.hawkinslab.org/computing and Best signal: 84.99.",
     initialCode:
-      "print(\"Run me!\")\nlanguage_code = \"pt\"\nsubject = \"computing\"\nbase_signal = \"99.99\"\npercent_discount = base_signal - base_signal * 0.15\nfixed_discount = base_signal - 12\nbest_signal = min(fixed_discount, percent_discount)\nurl = \"https://\" + language_code + \".hawkinslab.org/\" + subject\nprint(\"Portal:\", url)\nprint(\"Best signal:\", round(best_signal, 2))",
+      "# FINAL TERMINAL CHALLENGE\n# Fix this script by completing all TODO steps.\n\nprint(\"Run me!\")\n\n# TODO 1: Set language_code to \"es\"\nlanguage_code = \"pt\"\nsubject = \"computing\"\n\n# TODO 2: Convert this to a numeric value before arithmetic\nbase_signal = \"99.99\"\n\n# TODO 3: Keep these calculations valid and pick the best signal\n# Hint: \"best\" discount means the lower post-discount signal.\npercent_discount = base_signal - base_signal * 0.15\nfixed_discount = base_signal - 12\nbest_signal = max(fixed_discount, percent_discount)\n\n# TODO 4: Keep these output labels exactly\nurl = \"https://\" + language_code + \".hawkinslab.org/\" + subject\nprint(\"Portal:\", url)\nprint(\"Best signal:\", round(best_signal, 2))",
     quiz: {
       question:
-        "If base_signal is stored as text (\"99.99\"), what should you do before using it in arithmetic?",
+        "In this final challenge, which fix must happen before percent_discount math can run?",
       options: [
         "Convert it with float(base_signal)",
         "Convert it with str(base_signal)",
@@ -271,9 +251,9 @@ export const allConcepts: ConceptData[] = [
       ],
       correctIndex: 0,
       correctFeedback:
-        "Correct. Use float(...) so subtraction and multiplication work without a TypeError.",
+        "Correct. Use float(...) so subtraction and multiplication run without a TypeError.",
       wrongFeedback:
-        "Arithmetic needs a numeric type. Convert string input to float before calculations.",
+        "The math lines require a numeric value. Convert text to float before arithmetic.",
     },
     blank: {
       textParts: ["url = \"https://\" + language_code + \".hawkinslab.org/\" ", " subject"],

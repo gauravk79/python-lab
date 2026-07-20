@@ -10,8 +10,18 @@ import { useAuth } from '@/context/auth-context';
 import { useProgress } from '@/context/progress-context';
 
 const INTRO_UNIT_ID = 'intro';
+const RELEASED_UNIT_IDS = new Set(['unit-1']);
 const FINAL_UNIT_ID = units[units.length - 1]?.id ?? '';
 const CELEBRATION_DURATION_MS = 5500;
+const BADGE_TOAST_DURATION_MS = 4200;
+const toDisplayName = (value: string) => {
+  if (!value) {
+    return 'Student';
+  }
+
+  return value.charAt(0).toUpperCase() + value.slice(1);
+};
+
 const CELEBRATION_PARTICLES = Array.from({ length: 20 }, (_, index) => ({
   id: index,
   left: 10 + (index % 5) * 18,
@@ -73,11 +83,21 @@ const unitCelebrations: Record<string, { eyebrow: string; title: string; message
   },
 };
 
+type ThemeBadge = {
+  id: string;
+  title: string;
+  icon: string;
+  description: string;
+  earned: boolean;
+};
+
 export default function Home() {
   const { user, loading, isConfigured, signInWithGoogle, signOutUser } = useAuth();
   const {
     currentUnitId,
     setCurrentUnitId,
+    resetProgress,
+    completedSections,
     completedSectionsCount,
     totalSectionsCount,
     unitProgressById,
@@ -87,9 +107,15 @@ export default function Home() {
   const [authMenuOpen, setAuthMenuOpen] = useState(false);
   const [pendingSectionId, setPendingSectionId] = useState<string | null>(null);
   const [celebrationLabel, setCelebrationLabel] = useState<string | null>(null);
+  const [newlyUnlockedBadge, setNewlyUnlockedBadge] = useState<ThemeBadge | null>(null);
+  const [comingSoonNotice, setComingSoonNotice] = useState<string | null>(null);
   const unitContentTopRef = useRef<HTMLDivElement | null>(null);
   const authMenuRef = useRef<HTMLDivElement | null>(null);
   const celebrationTimeoutRef = useRef<number | null>(null);
+  const badgeToastTimeoutRef = useRef<number | null>(null);
+  const seenBadgeIdsRef = useRef<Set<string>>(new Set());
+  const badgeBaselineInitializedRef = useRef(false);
+  const previousCompletedSectionsCountRef = useRef(0);
   const audioContextRef = useRef<AudioContext | null>(null);
 
   const currentUnitIndex = units.findIndex((unit) => unit.id === currentUnitId);
@@ -100,6 +126,9 @@ export default function Home() {
       : currentUnitIndex >= 0
         ? units[currentUnitIndex + 1]
         : undefined;
+  const isNextUnitLocked = Boolean(
+    nextUnit && nextUnit.id !== INTRO_UNIT_ID && !RELEASED_UNIT_IDS.has(nextUnit.id),
+  );
 
   const visibleSectionIds = useMemo(
     () => currentUnit?.sections.map((section) => section.id) ?? [],
@@ -130,13 +159,110 @@ export default function Home() {
     currentUnitId === INTRO_UNIT_ID
       ? celebration.message
       : 'Complete every section in this unit to secure the files and unlock the completion briefing.';
-  const studentFirstName = (user?.displayName ?? user?.email?.split('@')[0] ?? 'Student')
-    .trim()
-    .split(/\s+/)[0];
+  const studentFirstName = toDisplayName(
+    (user?.displayName ?? user?.email?.split('@')[0] ?? 'Student')
+      .trim()
+      .split(/\s+/)[0],
+  );
+  const missionAlias = user ? studentFirstName : 'Recruit';
+  const badges = useMemo<ThemeBadge[]>(
+    () => [
+      {
+        id: 'first-signal',
+        title: 'First Signal',
+        icon: '📻',
+        description: 'Complete your first section.',
+        earned: completedSectionsCount >= 1,
+      },
+      {
+        id: 'lab-scribe',
+        title: 'Lab Scribe',
+        icon: '🧾',
+        description: 'Complete 3 sections.',
+        earned: completedSectionsCount >= 3,
+      },
+      {
+        id: 'hawkins-clearance',
+        title: 'Hawkins Clearance',
+        icon: '🧪',
+        description: 'Complete Unit 1.',
+        earned: Boolean(unitProgressById?.['unit-1']?.completed),
+      },
+      {
+        id: 'portal-runner',
+        title: 'Portal Runner',
+        icon: '⚡',
+        description: 'Complete 10 sections.',
+        earned: completedSectionsCount >= 10,
+      },
+      {
+        id: 'field-operator',
+        title: 'Field Operator',
+        icon: '🛰️',
+        description: 'Clear the Signal Decoder milestone.',
+        earned: completedSections.includes('field-challenge-1'),
+      },
+      {
+        id: 'portal-stabilizer',
+        title: 'Portal Stabilizer',
+        icon: '🛠️',
+        description: 'Complete the Final Terminal Challenge in Unit 1.',
+        earned: completedSections.includes('terminal-challenge'),
+      },
+      {
+        id: 'mind-hive-architect',
+        title: 'Mind Hive Architect',
+        icon: '🏆',
+        description: 'Complete every section in the course.',
+        earned:
+          totalSectionsCount > 0 &&
+          completedSectionsCount >= totalSectionsCount,
+      },
+    ],
+    [completedSections, completedSectionsCount, totalSectionsCount, unitProgressById],
+  );
+  const earnedBadges = useMemo(
+    () => badges.filter((badge) => badge.earned),
+    [badges],
+  );
+  const nextBadge = useMemo(
+    () => badges.find((badge) => !badge.earned),
+    [badges],
+  );
 
   useEffect(() => {
     setAuthMenuOpen(false);
   }, [user]);
+
+  useEffect(() => {
+    seenBadgeIdsRef.current = new Set();
+    badgeBaselineInitializedRef.current = false;
+    previousCompletedSectionsCountRef.current = 0;
+    setNewlyUnlockedBadge(null);
+    if (badgeToastTimeoutRef.current) {
+      window.clearTimeout(badgeToastTimeoutRef.current);
+      badgeToastTimeoutRef.current = null;
+    }
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (progressLoading) {
+      return;
+    }
+
+    const previousCompleted = previousCompletedSectionsCountRef.current;
+    if (previousCompleted > 0 && completedSectionsCount === 0) {
+      seenBadgeIdsRef.current = new Set();
+      badgeBaselineInitializedRef.current = false;
+      setNewlyUnlockedBadge(null);
+      if (badgeToastTimeoutRef.current) {
+        window.clearTimeout(badgeToastTimeoutRef.current);
+        badgeToastTimeoutRef.current = null;
+      }
+    }
+
+    previousCompletedSectionsCountRef.current = completedSectionsCount;
+  }, [completedSectionsCount, progressLoading]);
 
   useEffect(() => {
     if (!authMenuOpen) {
@@ -171,9 +297,43 @@ export default function Home() {
       if (celebrationTimeoutRef.current) {
         window.clearTimeout(celebrationTimeoutRef.current);
       }
+      if (badgeToastTimeoutRef.current) {
+        window.clearTimeout(badgeToastTimeoutRef.current);
+      }
       window.history.scrollRestoration = previousScrollRestoration;
     };
   }, []);
+
+  useEffect(() => {
+    if (progressLoading) {
+      return;
+    }
+
+    const seenBadgeIds = seenBadgeIdsRef.current;
+    if (!badgeBaselineInitializedRef.current) {
+      earnedBadges.forEach((badge) => seenBadgeIds.add(badge.id));
+      badgeBaselineInitializedRef.current = true;
+      return;
+    }
+
+    const newlyEarned = earnedBadges.filter((badge) => !seenBadgeIds.has(badge.id));
+    if (newlyEarned.length === 0) {
+      return;
+    }
+
+    newlyEarned.forEach((badge) => seenBadgeIds.add(badge.id));
+    const latestUnlock = newlyEarned[newlyEarned.length - 1];
+    setNewlyUnlockedBadge(latestUnlock);
+    playBadgeUnlockSound();
+
+    if (badgeToastTimeoutRef.current) {
+      window.clearTimeout(badgeToastTimeoutRef.current);
+    }
+    badgeToastTimeoutRef.current = window.setTimeout(() => {
+      setNewlyUnlockedBadge(null);
+      badgeToastTimeoutRef.current = null;
+    }, BADGE_TOAST_DURATION_MS);
+  }, [earnedBadges, progressLoading]);
 
   useEffect(() => {
     if (!pendingSectionId) {
@@ -207,6 +367,14 @@ export default function Home() {
   }, [pendingSectionId, currentUnitId]);
 
   const handleSelectSection = (sectionId: string, unitId: string) => {
+    const isUnitLocked = unitId !== INTRO_UNIT_ID && !RELEASED_UNIT_IDS.has(unitId);
+    if (isUnitLocked) {
+      const lockedUnit = units.find((unit) => unit.id === unitId);
+      setComingSoonNotice(`${lockedUnit?.title ?? 'This unit'} is coming soon. Unit 1 is live now.`);
+      setSidebarOpen(false);
+      return;
+    }
+
     if (unitId !== currentUnitId) {
       setCurrentUnitId(unitId);
     }
@@ -248,8 +416,48 @@ export default function Home() {
     });
   };
 
+  const playBadgeUnlockSound = () => {
+    if (typeof window === 'undefined' || typeof window.AudioContext === 'undefined') {
+      return;
+    }
+
+    const audioContext = audioContextRef.current ?? new window.AudioContext();
+    audioContextRef.current = audioContext;
+
+    if (audioContext.state === 'suspended') {
+      void audioContext.resume();
+    }
+
+    const now = audioContext.currentTime;
+    const notes = [659.25, 783.99, 1046.5];
+
+    notes.forEach((frequency, index) => {
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      const noteStart = now + index * 0.05;
+
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(frequency, noteStart);
+
+      gainNode.gain.setValueAtTime(0.0001, noteStart);
+      gainNode.gain.exponentialRampToValueAtTime(0.06, noteStart + 0.03);
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, noteStart + 0.28);
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      oscillator.start(noteStart);
+      oscillator.stop(noteStart + 0.32);
+    });
+  };
+
   const handleAdvanceToNextUnit = () => {
     if (!nextUnit) {
+      return;
+    }
+
+    if (isNextUnitLocked) {
+      setComingSoonNotice(`${nextUnit.title} is coming soon. Unit 1 is live now.`);
       return;
     }
 
@@ -324,10 +532,61 @@ export default function Home() {
                   Portal To {celebrationLabel}
                 </h2>
                 <p className="text-gray-200 text-base md:text-lg">
-                  The lights are flashing. Another Hawkins mission has opened.
+                  Agent {missionAlias}, the lights are flashing. Another Hawkins mission has opened.
                 </p>
               </div>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {comingSoonNotice && (
+          <motion.div
+            initial={{ opacity: 0, y: -14, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.98 }}
+            transition={{ duration: 0.22, ease: 'easeOut' }}
+            className="fixed left-1/2 top-4 z-[95] w-[min(92vw,34rem)] -translate-x-1/2 rounded-xl border border-[#7dd3fc]/45 bg-[#051427]/95 px-4 py-3 text-[#bae6fd] shadow-[0_0_24px_rgba(125,211,252,0.25)] backdrop-blur-sm"
+          >
+            <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#7dd3fc] mb-1">
+              Coming Soon
+            </p>
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-sm text-[#dbeafe]">{comingSoonNotice}</p>
+              <button
+                type="button"
+                onClick={() => setComingSoonNotice(null)}
+                className="shrink-0 rounded border border-[#7dd3fc]/45 bg-black/35 px-2 py-1 text-[10px] font-mono uppercase tracking-[0.14em] text-[#7dd3fc] hover:bg-black/55"
+              >
+                Close
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {newlyUnlockedBadge && (
+          <motion.div
+            initial={{ opacity: 0, y: -14, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.98 }}
+            transition={{ duration: 0.22, ease: 'easeOut' }}
+            className="fixed right-4 top-4 z-[95] w-[min(92vw,20rem)] rounded-xl border border-[#ffb703]/45 bg-[#120a00]/95 px-4 py-3 text-[#ffdd8a] shadow-[0_0_26px_rgba(255,183,3,0.35)] backdrop-blur-sm"
+          >
+            <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#ffb703] mb-1">
+              Badge Unlocked
+            </p>
+            <div className="flex items-center gap-3">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#ffb703]/45 bg-[#ffb703]/12 text-xl" aria-hidden="true">
+                {newlyUnlockedBadge.icon}
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-[#ffdd8a]">{newlyUnlockedBadge.title}</p>
+                <p className="text-xs text-gray-200">{newlyUnlockedBadge.description}</p>
+              </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -338,6 +597,7 @@ export default function Home() {
         activeSection={activeSection} 
         currentUnitId={currentUnitId}
         unitProgressById={unitProgressById}
+        isUnitLocked={(unitId) => unitId !== INTRO_UNIT_ID && !RELEASED_UNIT_IDS.has(unitId)}
         isOpen={sidebarOpen} 
         onSelectSection={handleSelectSection}
         onClose={() => setSidebarOpen(false)} 
@@ -354,7 +614,7 @@ export default function Home() {
             <Menu className="w-6 h-6" />
           </button>
 
-          <div ref={authMenuRef} className="absolute top-6 right-6 z-20">
+          <div ref={authMenuRef} className="fixed top-4 right-4 z-[96]">
             <button
               onClick={() => setAuthMenuOpen((prev) => !prev)}
               className={`relative rounded-full border p-2 shadow-[0_0_12px_rgba(0,68,255,0.3)] transition-colors ${
@@ -397,6 +657,45 @@ export default function Home() {
                         ? 'Loading progress...'
                         : `${completedSectionsCount}/${totalSectionsCount} complete`}
                     </div>
+                    <div className="mb-3 rounded-xl border border-[#ffb703]/35 bg-[#120a00]/90 px-3 py-3 shadow-[0_0_16px_rgba(255,183,3,0.16)]">
+                      <p className="mb-3 text-[11px] font-mono uppercase tracking-[0.24em] text-[#ffb703]">
+                        Field Badges
+                      </p>
+                      {progressLoading ? (
+                        <p className="text-xs text-gray-300">Scanning badges...</p>
+                      ) : earnedBadges.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {earnedBadges.map((badge) => (
+                            <span
+                              key={`menu-${badge.id}`}
+                              title={`${badge.title} - ${badge.description}`}
+                              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#ffb703]/45 bg-[#ffb703]/12 text-xl shadow-[0_0_10px_rgba(255,183,3,0.16)]"
+                            >
+                              <span aria-hidden="true">{badge.icon}</span>
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-300">No badges yet. Complete a mission to unlock your first one.</p>
+                      )}
+                      {nextBadge && !progressLoading && (
+                        <p className="mt-3 text-xs text-gray-300">
+                          Next unlock: <span className="text-[#ffdd8a]">{nextBadge.title}</span>
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => {
+                        if (!window.confirm('Reset all saved progress and badges for this account?')) {
+                          return;
+                        }
+                        resetProgress();
+                        setAuthMenuOpen(false);
+                      }}
+                      className="mb-2 w-full rounded-lg border border-[#ffb703]/35 bg-[#ffb703]/10 px-3 py-2 text-xs font-mono uppercase tracking-[0.16em] text-[#ffdd8a] transition-colors hover:bg-[#ffb703]/20"
+                    >
+                      Reset progress
+                    </button>
                     <button
                       onClick={() => {
                         setAuthMenuOpen(false);
@@ -453,13 +752,14 @@ export default function Home() {
           <div className="max-w-4xl mx-auto px-6 space-y-20">
             <div ref={unitContentTopRef} />
             {currentUnitId === INTRO_UNIT_ID ? (
-              <IntroSection />
+              <IntroSection studentName={user ? studentFirstName : undefined} />
             ) : (
               <>
                 {visibleConcepts.map((concept) => (
                   <ConceptSection
                     key={concept.id}
                     concept={concept}
+                    studentName={user ? studentFirstName : undefined}
                     onPromptLogin={handlePromptLogin}
                   />
                 ))}
@@ -479,26 +779,34 @@ export default function Home() {
                    You're not in the Upside Down anymore
                  </h2>
                  <p className="relative z-10 text-xl md:text-2xl font-bold font-sans text-gray-200 tracking-wide">
-                   — you're a Python coder! —
+                   — {missionAlias}, you're a Python coder! —
                  </p>
                </>
              ) : (
                <>
                  <p className="relative z-10 text-sm md:text-base font-mono uppercase tracking-[0.35em] text-[#ffb703] mb-5">
-                   {isCurrentUnitComplete ? celebration.eyebrow : inProgressEyebrow}
+                   {isCurrentUnitComplete ? `${celebration.eyebrow} • Agent ${missionAlias}` : inProgressEyebrow}
                  </p>
                  <h2 className="relative z-10 text-4xl md:text-5xl font-display text-[#e63946] glow-text-red tracking-widest mb-6 transform group-hover:scale-105 transition-transform duration-500">
                    {isCurrentUnitComplete ? celebration.title : inProgressTitle}
                  </h2>
                  <p className="relative z-10 text-xl md:text-2xl font-bold font-sans text-gray-200 tracking-wide">
-                   {isCurrentUnitComplete ? celebration.message : inProgressMessage}
+                   {isCurrentUnitComplete ? `${missionAlias}, ${celebration.message}` : inProgressMessage}
                  </p>
                  {nextUnit && (
                    <button
                      onClick={handleAdvanceToNextUnit}
-                     className="relative z-10 mt-8 bg-[#e63946] hover:bg-red-500 text-white font-bold py-3 px-8 rounded-lg shadow-[0_0_18px_rgba(230,57,70,0.55)] transition-all active:scale-95 tracking-wide"
+                    className={`relative z-10 mt-8 text-white font-bold py-3 px-8 rounded-lg shadow-[0_0_18px_rgba(230,57,70,0.55)] transition-all tracking-wide ${
+                      isNextUnitLocked
+                        ? 'bg-gray-700/80 hover:bg-gray-600/90'
+                        : 'bg-[#e63946] hover:bg-red-500 active:scale-95'
+                    }`}
                    >
-                     {currentUnitId === INTRO_UNIT_ID ? 'Begin Unit 1' : 'Open Next Unit'}
+                    {currentUnitId === INTRO_UNIT_ID
+                      ? 'Begin Unit 1'
+                      : isNextUnitLocked
+                        ? 'Next Unit Coming Soon'
+                        : 'Open Next Unit'}
                    </button>
                  )}
                </>

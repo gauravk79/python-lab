@@ -7,7 +7,10 @@ type Line = {
   pauseAfter?: number;
 };
 
-const LINES: Line[] = [
+const buildIntroLines = (studentName?: string): Line[] => {
+  const safeName = studentName?.trim() || 'Recruit';
+
+  return [
   { text: '> HAWKINS NATIONAL LABORATORY', color: 'text-[#e63946]', pauseAfter: 120 },
   { text: '> CLASSIFIED ACCESS TERMINAL — LEVEL 4 CLEARANCE REQUIRED', color: 'text-[#e63946]', pauseAfter: 400 },
   { text: '', pauseAfter: 100 },
@@ -16,7 +19,7 @@ const LINES: Line[] = [
   { text: '> WARNING: Mind Flayer activity detected in sector 7.', color: 'text-yellow-400', pauseAfter: 500 },
   { text: '> Deploying psychic interference countermeasures... DONE', color: 'text-green-400', pauseAfter: 600 },
   { text: '', pauseAfter: 100 },
-  { text: '> Welcome, Recruit.', color: 'text-white', pauseAfter: 500 },
+  { text: `> Welcome, ${safeName}.`, color: 'text-white', pauseAfter: 500 },
   { text: '', pauseAfter: 80 },
   { text: '> You have been selected for PROJECT PYTHON —', color: 'text-gray-300', pauseAfter: 80 },
   { text: '> a top-secret Hawkins Lab initiative to train the next', color: 'text-gray-300', pauseAfter: 80 },
@@ -35,9 +38,10 @@ const LINES: Line[] = [
   { text: '> Eleven is rooting for you from the void.', color: 'text-gray-300', pauseAfter: 300 },
   { text: '> The Mind Flayer cannot stop what you are about to learn.', color: 'text-gray-300', pauseAfter: 600 },
   { text: '', pauseAfter: 80 },
-  { text: '> Scroll down to begin your training, Recruit.', color: 'text-[#e63946]', pauseAfter: 0 },
+  { text: `> Scroll down to begin your training, ${safeName}.`, color: 'text-[#e63946]', pauseAfter: 0 },
   { text: '> [CONNECTION ESTABLISHED — GOOD LUCK]', color: 'text-[#e63946]', pauseAfter: 0 },
-];
+  ];
+};
 
 const CHAR_SPEED = 22;         // ms per character
 const MUSIC_TARGET_VOL = 0.55;
@@ -45,7 +49,8 @@ const FADE_IN_MS = 2000;
 const FADE_OUT_MS = 1500;
 const FADE_STEPS = 40;
 
-export function IntroSection() {
+export function IntroSection({ studentName }: { studentName?: string }) {
+  const lines = React.useMemo(() => buildIntroLines(studentName), [studentName]);
   const [hasStarted, setHasStarted] = useState(false);
   const [completedLines, setCompletedLines] = useState(0);
   const [currentChars, setCurrentChars] = useState(0);
@@ -173,10 +178,10 @@ export function IntroSection() {
     if (isPlaying) {
       startFade(0, FADE_OUT_MS, () => { audioRef.current?.pause(); });
     }
-    setCompletedLines(LINES.length);
+    setCompletedLines(lines.length);
     setCurrentChars(0);
     setDone(true);
-  }, [isPlaying, startFade]);
+  }, [isPlaying, lines.length, startFade]);
 
   // ── Replay from start ─────────────────────────────────────────────────────
   const replayFromStart = useCallback((e: React.MouseEvent) => {
@@ -206,7 +211,7 @@ export function IntroSection() {
   // ── Typewriter effect ─────────────────────────────────────────────────────
   useEffect(() => {
     if (!hasStarted || done) return;
-    const line = LINES[completedLines];
+    const line = lines[completedLines];
     if (!line) { setDone(true); return; }
 
     if (currentChars < line.text.length) {
@@ -220,7 +225,7 @@ export function IntroSection() {
       }, pause);
       return () => clearTimeout(t);
     }
-  }, [hasStarted, completedLines, currentChars, done]);
+  }, [hasStarted, completedLines, currentChars, done, lines]);
 
   // Auto-scroll as text streams in
   useEffect(() => {
@@ -313,15 +318,15 @@ export function IntroSection() {
             </div>
           ) : (
             <>
-              {LINES.slice(0, completedLines).map((line, i) => (
+              {lines.slice(0, completedLines).map((line, i) => (
                 <div key={i} className={line.color ?? 'text-gray-300'}>
                   {line.text || '\u00A0'}
                 </div>
               ))}
 
-              {completedLines < LINES.length && (
-                <div className={LINES[completedLines].color ?? 'text-gray-300'}>
-                  {LINES[completedLines].text.slice(0, currentChars)}
+              {completedLines < lines.length && (
+                <div className={lines[completedLines].color ?? 'text-gray-300'}>
+                  {lines[completedLines].text.slice(0, currentChars)}
                   <span className="animate-[blink_1s_step-end_infinite] inline-block w-[9px] h-[1.1em] bg-current ml-[1px] align-middle opacity-90" />
                 </div>
               )}

@@ -7,6 +7,11 @@ import { db, isFirebaseConfigured } from '@/lib/firebase';
 const INTRO_UNIT_ID = 'intro';
 
 export type SavedSectionProgress = {
+  learnCompleted: boolean;
+  watchedVideoUrls: string[];
+  briefingQuizChoice: number | null;
+  briefingQuizSubmitted: boolean;
+  briefingQuizCorrect: boolean;
   quizChoice: number | null;
   quizSubmitted: boolean;
   quizCorrect: boolean;
@@ -36,6 +41,7 @@ type StudentProgressDocument = {
 type ProgressContextValue = {
   currentUnitId: string;
   setCurrentUnitId: (unitId: string) => void;
+  resetProgress: () => void;
   sectionProgressById: Record<string, SavedSectionProgress>;
   updateSectionProgress: (
     sectionId: string,
@@ -183,6 +189,12 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
     setCurrentUnitIdState(unitId);
   };
 
+  const resetProgress = () => {
+    setCurrentUnitIdState(INTRO_UNIT_ID);
+    setSectionProgressById({});
+    setHasHydrated(true);
+  };
+
   const updateSectionProgress = (
     sectionId: string,
     nextProgress: Omit<SavedSectionProgress, 'updatedAt'>,
@@ -243,6 +255,7 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
     () => ({
       currentUnitId,
       setCurrentUnitId,
+      resetProgress,
       sectionProgressById,
       updateSectionProgress,
       loading,

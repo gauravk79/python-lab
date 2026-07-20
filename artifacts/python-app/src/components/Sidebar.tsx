@@ -14,12 +14,13 @@ interface SidebarProps {
   activeSection: string;
   currentUnitId: string;
   unitProgressById: Record<string, UnitProgressSummary>;
+  isUnitLocked: (unitId: string) => boolean;
   isOpen: boolean;
   onSelectSection: (sectionId: string, unitId: string) => void;
   onClose: () => void;
 }
 
-export function Sidebar({ units, activeSection, currentUnitId, unitProgressById, isOpen, onSelectSection, onClose }: SidebarProps) {
+export function Sidebar({ units, activeSection, currentUnitId, unitProgressById, isUnitLocked, isOpen, onSelectSection, onClose }: SidebarProps) {
   const [expandedUnits, setExpandedUnits] = useState<Record<string, boolean>>(
     units.reduce((acc, unit) => ({ ...acc, [unit.id]: false }), {})
   );
@@ -78,6 +79,7 @@ export function Sidebar({ units, activeSection, currentUnitId, unitProgressById,
 
         {units.map((unit, index) => {
           const progress = unitProgressById?.[unit.id];
+          const locked = isUnitLocked(unit.id);
 
           return (
           <div key={unit.id} className="space-y-2">
@@ -98,12 +100,19 @@ export function Sidebar({ units, activeSection, currentUnitId, unitProgressById,
                     ? 'text-green-400'
                     : 'text-gray-500 group-hover:text-gray-300'
                 }`}>
-                  {progress?.completed
+                  {locked
+                    ? 'Coming soon'
+                    : progress?.completed
                     ? 'Complete'
                     : `${progress?.completedSections ?? 0}/${progress?.totalSections ?? unit.sections.length} sections`}
                 </span>
               </div>
               <div className="flex items-center gap-2 shrink-0">
+                {locked && (
+                  <span className="rounded-full border border-[#7dd3fc]/45 bg-[#05253a]/55 px-2 py-0.5 text-[10px] font-mono uppercase tracking-[0.18em] text-[#7dd3fc]">
+                    Soon
+                  </span>
+                )}
                 {progress?.completed && (
                   <span className="rounded-full border border-green-500/40 bg-green-500/15 px-2 py-0.5 text-[10px] font-mono uppercase tracking-[0.18em] text-green-300">
                     Cleared
